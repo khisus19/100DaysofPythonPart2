@@ -24,19 +24,36 @@ TOKEN_ENDPOINT = "https://test.api.amadeus.com/v1/security/oauth2/token"
 class FlightSearch:
     #This class is responsible for talking to the Flight Search API.
     def __init__(self):
-        self.get_city_code("Paris")
         self._api_key = AMADEUS_API_KEY
         self._api_secret = AMADEUS_API_SECRET
         self._token = self._get_new_token()
+        self.get_city_code("Paris")
 
-    def get_city_code(self, city):
-        header = {
-            "keywords": city
+    def get_city_code(self, city_name):
+        
+        print(f"Using this token to get destination {self._token}")
+        headers = {"Authorization": f"Bearer {self._token}"}
+        query = {
+            "keyword": city_name,
+            "max": "2",
+            "include": "AIRPORTS",
         }
-        response = requests.get(url=CITIES_ENDPOINT, headers=header)
-        print(response.text)
-        # data = response.json()
-        return "TESTING"
+        response = requests.get(
+            url=CITIES_ENDPOINT,
+            headers=headers,
+            params=query
+        )
+        print(f"Status code {response.status_code}. Airport IATA: {response.text}")
+        try:
+            code = response.json()["data"][0]['iataCode']
+        except IndexError:
+            print(f"IndexError: No airport code found for {city_name}.")
+            return "N/A"
+        except KeyError:
+            print(f"KeyError: No airport code found for {city_name}.")
+            return "Not Found"
+
+        return code
     
     def _get_new_token(self):
         header = {
@@ -48,6 +65,11 @@ class FlightSearch:
             'client_secret': self._api_secret
         }
         response = requests.post(url=TOKEN_ENDPOINT, headers=header, data=body)
-
-search = FlightSearch()
-search.get_city_code("London")
+        data = response.json()
+        # New bearer token. Typically expires in 1799 seconds (30min)
+        print(f"Your token is {data['access_token']}")
+        print(f"Your token expires in {data['expires_in']} seconds")
+        return data['access_token']
+    
+# search = FlightSearch()
+# search.get_city_code("London")
